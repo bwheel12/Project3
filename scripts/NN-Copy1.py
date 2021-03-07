@@ -20,9 +20,7 @@ class NeuralNetwork:
         self.number_layers = len(setup)-1 #the number of non-input layer, layers
         for i in range(self.number_layers):
             self.edge_matrices.append(np.random.normal(0,0.01,size=(setup[i+1],setup[i])))
-            #self.edge_matrices.append(np.ones((setup[i+1],setup[i])))
-            self.biases.append(np.random.normal(0,0.01,size=(setup[i+1])))
-            #self.biases.append(np.zeros((setup[i+1])))
+            self.biases.append(np.random.rand((setup[i+1])))
         
         for j in range(0,self.number_layers):
             self.layer_z.append(np.zeros((setup[j+1])))
@@ -64,12 +62,10 @@ class NeuralNetwork:
         #for testing use whole training set
         batch_set = self.training_set
         
-        
         num_batch = len(batch_set)
-        print("num batch is ",num_batch,end='\r')
         epoch_cost = 0
         for i in range(num_batch):
-            #print("i is ",i,end='\r')
+            print("i is ",i,end='\r')
             self.get_single_input(batch_set[i])
             self.feedforward()
             partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,self.input_layer,self.layer_z,self.layer_a)
@@ -80,13 +76,9 @@ class NeuralNetwork:
                 
         for z in range(self.number_layers):
             self.edge_matrices[z] = self.edge_matrices[z] - self.alpha*((1/(num_batch)*delta_Ws[z])+self.lamba*self.edge_matrices[z])
-            #print(self.alpha*((1/(num_batch)*delta_Ws[z])+self.lamba*self.edge_matrices[z]))
             self.biases[z]        = self.biases[z]        - self.alpha*(1/(num_batch)*delta_bs[z])
             
-        epoch_cost = 1/2*(self.input_layer-self.layer_a[self.number_layers-1])*(self.input_layer-self.layer_a[self.number_layers-1])
-        #print("epoch cost is ",epoch_cost)
-            
-        return epoch_cost    
+        #return epoch_cost    
         
     def test_backprop(self):
         partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,self.input_layer,self.layer_z,self.layer_a)
@@ -100,19 +92,20 @@ class NeuralNetwork:
                 
         ##something is wrong here...    
         errors = [] 
-        for j in range(last_layer_index,-1,-1):
+        for j in range(self.number_layers):
             temp_errors = []
-            temp_derivatives = self.derivatives_vector(layer_zs[j])
-            if j == last_layer_index:
-                temp_errors = -(correct - layer_as[j])*temp_derivatives
+            #print(j)
+            #print(last_layer-j-2)
+            temp_derivatives = self.derivatives_vector(layer_zs[last_layer_index - j])
+            #print(temp_derivatives)
+            if j == 0:
+                temp_errors = -(correct - layer_as[last_layer_index])*temp_derivatives
             else:
                 #print(last_layer_index-j-1)
                 #print(edge_matrices[last_layer_index-j-1])
-                temp_errors = (np.dot(np.transpose(edge_matrices[j+1]),errors[0]))*temp_derivatives
+                temp_errors = (np.dot(np.transpose(edge_matrices[last_layer_index-j+1]),errors[0]))*temp_derivatives
             errors.insert(0,temp_errors)
         
-        self.errors = errors
-        #print(len(errors))
         #print("errors are ",errors)
         #just compute partial derivatives now
         partial_Ws = []
@@ -120,15 +113,8 @@ class NeuralNetwork:
         
         
         for k in range(self.number_layers):
-            if k ==0:
-                partial_Ws.append(np.outer(errors[k],self.input_layer))
-                partial_bs.append(errors[k])
-            if k > 0:
-                partial_Ws.append(np.outer(errors[k],layer_as[k-1]))
-                partial_bs.append(errors[k])
-            
-            #partial_Ws.insert(0,np.outer(errors[last_layer_index-k],layer_as[last_layer_index-k-1]))
-            #partial_bs.insert(0,errors[last_layer_index-k])
+            partial_Ws.insert(0,np.outer(errors[last_layer_index-k],layer_as[last_layer_index-k-1]))
+            partial_bs.insert(0,errors[last_layer_index-k])
                 
         return partial_Ws, partial_bs
             
