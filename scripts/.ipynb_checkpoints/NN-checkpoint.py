@@ -20,9 +20,7 @@ class NeuralNetwork:
         self.number_layers = len(setup)-1 #the number of non-input layer, layers
         for i in range(self.number_layers):
             self.edge_matrices.append(np.random.normal(0,0.01,size=(setup[i+1],setup[i])))
-            #self.edge_matrices.append(np.ones((setup[i+1],setup[i])))
             self.biases.append(np.random.normal(0,0.01,size=(setup[i+1])))
-            #self.biases.append(np.zeros((setup[i+1])))
         
         for j in range(0,self.number_layers):
             self.layer_z.append(np.zeros((setup[j+1])))
@@ -33,10 +31,18 @@ class NeuralNetwork:
     def get_single_input(self,input_layer):
         self.input_layer = input_layer
         
-    def get_training_set(self,inputs):
+    def get_training_set(self,inputs,answers):
         self.training_set = []
+        self.training_answers = []
+        
+        if len(inputs) != len(answers):
+            raise ValueError('Training set does not match answers length')
+        
         for x in inputs:
             self.training_set.append(x)
+        
+        for y in answers:
+            self.training_answers.append(y)
     
     def make_weights(self):
         pass
@@ -63,6 +69,7 @@ class NeuralNetwork:
         #need to determine how a batch is set up
         #for testing use whole training set
         batch_set = self.training_set
+        batch_ans = self.training_answers
         
         
         num_batch = len(batch_set)
@@ -72,7 +79,7 @@ class NeuralNetwork:
             #print("i is ",i,end='\r')
             self.get_single_input(batch_set[i])
             self.feedforward()
-            partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,self.input_layer,self.layer_z,self.layer_a)
+            partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,batch_ans[i],self.layer_z,self.layer_a)
             for j in range(self.number_layers):
                 
                 delta_Ws[j] = delta_Ws[j] + partial_Ws[j]
@@ -84,7 +91,7 @@ class NeuralNetwork:
             self.biases[z]        = self.biases[z]        - self.alpha*(1/(num_batch)*delta_bs[z])
             
         epoch_cost = 1/2*(self.input_layer-self.layer_a[self.number_layers-1])*(self.input_layer-self.layer_a[self.number_layers-1])
-        #print("epoch cost is ",epoch_cost)
+        
             
         return epoch_cost    
         
