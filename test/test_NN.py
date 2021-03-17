@@ -1,11 +1,17 @@
 from scripts import NN
 
 
-def test_encoder():
+@pytest.fixture
+
+
+def test_one_hot():
     assert True
 
-def test_encoder_relu():
-    assert True
+    
+def test_feed_forward():
 
-def test_one_d_ouput():
+def test_activation():
+    assert True
+    
+def test_simple_classify():
     assert True

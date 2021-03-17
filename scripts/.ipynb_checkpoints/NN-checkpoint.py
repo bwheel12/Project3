@@ -1,4 +1,3 @@
-##development note: general structure is good right now. But should be simplified to make generalization to any architecture easy and troubleshooting not the worst thing in the world
 from scripts import io
 import numpy as np
 import math as m
@@ -6,32 +5,46 @@ import random as rand
 
 class NeuralNetwork:
     def __init__(self, setup, act_f,alpha,lamba):
-        self.alpha = alpha
-        self.lamba = lamba
-        self.setup = setup
-        self.edge_matrices = []
+        """This class implements a fully connected neural network. Setup should be a vector where the first entry indicates the input 
+        layer size, the last the output layer size, and for any given number of entries in between the size of the respective hidden layers. 
+        A function should be passed as act_f which is the activation function. alpha is the learning rate should be a scaler 0 to 1. 
+        Lamba should be a very small scaler."""
+        self.alpha = alpha #learning rate
+        self.lamba = lamba #the weight decay constant
+        self.setup = setup #the network architecture
+        self.edge_matrices = [] 
         self.input_layer   = []
         self.biases        = []
-        self.layer_z = []
-        self.layer_a = []
+        self.layer_z = [] #all the values of each layer after matrix multiplication, but before passing through the activation function
+        self.layer_a = [] #all the values of each layer after passing through the activation function
         self.number_layers = len(setup)-1 #the number of non-input layer, layers
+        #Initialize the edge and bias weights to small random numbers normaly distributed about 0
         for i in range(self.number_layers):
             self.edge_matrices.append(np.random.normal(0,0.01,size=(setup[i+1],setup[i])))
             self.biases.append(np.random.normal(0,0.01,size=(setup[i+1])))
         
+        #initialize the layer nodes to the correct size for each layer
         for j in range(0,self.number_layers):
             self.layer_z.append(np.zeros((setup[j+1])))
             self.layer_a.append(np.zeros((setup[j+1])))
             
-        self.act_f = act_f
+        self.act_f = act_f 
 
     def get_single_input(self,input_layer):
+        """This function takes a single input and assigns it to the input layer
+        Parameters: input layer, a vector the same length as the indicated input layer
+        returns: none
+        """
         self.input_layer = input_layer
         
     def get_training_set(self,inputs,answers):
+        """This function takes a list of training examples and answers and stores them for training
+        parameters: inputs, a list of one hot(or other wise numerically) encoded training examples
+        answers: a list of answers to which the output layer should be compared. should be numerical and size match output layer"""
         self.training_set = []
         self.training_answers = []
         
+        #check to make sure the inputs and answers are same length. if they arent perfectly matched then training is meaningless
         if len(inputs) != len(answers):
             raise ValueError('Training set does not match answers length')
         
@@ -40,21 +53,25 @@ class NeuralNetwork:
         
         for y in answers:
             self.training_answers.append(y)
-    
-    def make_weights(self):
-        pass
 
     def feedforward(self):
-        self.layer_z[0] = np.dot(self.edge_matrices[0],self.input_layer) + self.biases[0]
-        self.layer_a[0] = self.act_vector(self.layer_z[0])
+        """This function does the matrix multiplication to translate the input layer into the output via passing through
+        fully connected layers with the defined activation function. No parameters given acts entirely on self variables."""
+        #first layer is unique as input layer has already been "activated"
+        self.layer_z[0] = np.dot(self.edge_matrices[0],self.input_layer) + self.biases[0] #matrix mutliplication to creat z values
+        self.layer_a[0] = self.act_vector(self.layer_z[0]) #a values come from doing the activation function on the z values
         
+        #the rest of the layers easy and the same operations as the lines above just now the previous hidden layer is the input
         if self.number_layers > 1:
             for j in range(1,self.number_layers):
-                #print(j)
                 self.layer_z[j] = np.dot(self.edge_matrices[j],self.layer_a[j-1]) + self.biases[j]
                 self.layer_a[j] = self.act_vector(self.layer_z[j])
         
     def batch_descent(self):
+        """This function uses the training inputs and answers to compare the current feedforward answer to the desired output.
+        It then uses gradient descent to update the network weights to train the network. No parameters are given as it works 
+        entirely on self variables"""
+        #initialize the matrices that will hold the gradient values
         delta_Ws = []
         delta_bs = []
         
@@ -63,39 +80,39 @@ class NeuralNetwork:
             delta_bs.append(np.zeros((self.setup[i+1])))
         
         
-        #need to determine how a batch is set up
-        #for testing use whole training set
+        #get the exmaples and answers to train on
         batch_set = self.training_set
         batch_ans = self.training_answers
         
         
+        #multiple examples will be calculated and the gradients will be averaged before updating the network
         num_batch = len(batch_set)
-        #print("num batch is ",num_batch,end='\r')
         epoch_cost = 0
+        #go through each examples one by one add up the gradients
         for i in range(num_batch):
-            #print("i is ",i,end='\r')
-            self.get_single_input(batch_set[i])
-            #print("input length is",len(batch_set[i]))
-            self.feedforward()
-            partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,batch_ans[i],self.layer_z,self.layer_a)
+            self.get_single_input(batch_set[i]) #assign to input
+            self.feedforward() #calculate output
+            partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,batch_ans[i],self.layer_z,self.layer_a) #backprop to calculate gradients for this example
+            #for each layer add up the gradients as they are calculated one by one
             for j in range(self.number_layers):
                 
                 delta_Ws[j] = delta_Ws[j] + partial_Ws[j]
                 delta_bs[j] = delta_bs[j] + partial_bs[j]
-            epoch_cost = epoch_cost + 1/2*(batch_ans[i]-self.layer_a[self.number_layers-1])*(batch_ans[i]-self.layer_a[self.number_layers-1])
-                
+            epoch_cost = epoch_cost + 1/2*(batch_ans[i]-self.layer_a[self.number_layers-1])*(batch_ans[i]-self.layer_a[self.number_layers-1]) #add up the whole cost for this batch
+        
+        #update the weights and biases for each layer
         for z in range(self.number_layers):
             self.edge_matrices[z] = self.edge_matrices[z] - self.alpha*((1/(num_batch)*delta_Ws[z])+self.lamba*self.edge_matrices[z])
-            #print(self.alpha*((1/(num_batch)*delta_Ws[z])+self.lamba*self.edge_matrices[z]))
             self.biases[z]        = self.biases[z]        - self.alpha*(1/(num_batch)*delta_bs[z])
         
-        
+        #calculate the average cost for the batch. Epoch isnt exactly right in how I ended up using this. But not a good idea to change at this point
         epoch_cost = epoch_cost/num_batch
         
             
         return epoch_cost    
         
     def test_backprop(self):
+        """This function only does the gradient calculation step within back prop. really useful for debugging. Kept altough no longer needed in final implementation"""
         #this function is primarily for debugging, particularly the autoencoder
         partial_Ws, partial_bs = self.backprop(self.edge_matrices,self.biases,self.input_layer,self.layer_z,self.layer_a)
         print(partial_Ws)
@@ -104,6 +121,8 @@ class NeuralNetwork:
         
    
     def backprop(self,edge_matrices,biases,correct,layer_zs,layer_as):
+        """This function does the gradient calculations. Might not fully encompas what might be considered 'backprop' but the essential difficult step. And
+        it is too late to change the name now. It takes"""
         last_layer_index = self.number_layers - 1 #the index of the final item in the layer or edge matrices list
                 
         ##something is wrong here...    
