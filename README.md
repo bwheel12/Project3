@@ -3,11 +3,8 @@
 
 ![BuildStatus](https://github.com/ucsf-bmi-203-2021/Project3/workflows/HW3/badge.svg?event=push)
 
-### main
-Runs all code in scripts/\_\_main\_\_.py, useful for part 2
-```
-python -m scripts
-```
+All the code and prose to answer the questions for the assignment are contained in Benjamin_Wheeler_Project3.ipynb. \_\_main\_\_.py and \_\_init\_\_.py are unused. 
+
 
 ### testing
 Testing is as simple as running
@@ -15,3 +12,9 @@ Testing is as simple as running
 python -m pytest test/*
 ```
 from the root directory of this project.
+
+## Classes and Functions within NN.py
+
+
+
+## Classes and Functions within io.py

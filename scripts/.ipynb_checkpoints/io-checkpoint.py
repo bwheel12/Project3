@@ -30,7 +30,7 @@ def import_negatives(import_path,k_mer):
         if lines[i][0] == '>':
             temp_gene = lines[(i):(i+1)*18-1]
             rand_line = int(np.ceil(rand.random()*16))
-            rand_index = int(np.floor(rand.random()*(61-17)))
+            rand_index = int(np.floor(rand.random()*(61-18)))
             negative_list.append(temp_gene[rand_line][rand_index:(rand_index+k_mer)])
         
         
@@ -62,3 +62,26 @@ def one_hot_encode(k_mer_list):
     
     
     return one_hot_encoded
+
+def shuffle_concat(pos_list,neg_list,neg_scale):
+    number_positives = len(pos_list)
+    number_neg = number_positives*neg_scale
+    neg_short = []
+
+    #create a negative set of the same size as positive input set randomly chosen from genome list
+    for i in range(number_neg):
+        rand_index = int(np.floor(rand.random()*(len(neg_list)-1)))
+        neg_short.append(neg_list[rand_index])
+
+
+    combo_training_list = pos_list + neg_short
+    combo_answer_list    = np.ones((number_positives))
+    combo_answer_list    = np.concatenate((combo_answer_list,np.zeros((number_neg))))
+    zipped_full_train    = list(zip(combo_training_list,combo_answer_list))
+    rand.shuffle(zipped_full_train)
+    shuffle_train_list, shuffle_answer_list = zip(*zipped_full_train)
+    return shuffle_train_list, shuffle_answer_list
+    
+    
+    
+    
