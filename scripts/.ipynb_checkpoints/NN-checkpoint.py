@@ -122,30 +122,29 @@ class NeuralNetwork:
    
     def backprop(self,edge_matrices,biases,correct,layer_zs,layer_as):
         """This function does the gradient calculations. Might not fully encompas what might be considered 'backprop' but the essential difficult step. And
-        it is too late to change the name now. It takes"""
+        it is too late to change the name now. It takes all the essential components of the network as they typically are. It returns the partial gradient values
+        for a given correct answer."""
+        
         last_layer_index = self.number_layers - 1 #the index of the final item in the layer or edge matrices list
                 
-        ##something is wrong here...    
-        errors = [] 
+         
+        errors = [] #will hold the small d error for a layer
+        #find the error for each node in each layer
         for j in range(last_layer_index,-1,-1):
             temp_errors = []
             temp_derivatives = self.derivatives_vector(layer_zs[j])
             if j == last_layer_index:
                 temp_errors = -(correct - layer_as[j])*temp_derivatives
             else:
-                #print(last_layer_index-j-1)
-                #print(edge_matrices[last_layer_index-j-1])
                 temp_errors = (np.dot(np.transpose(edge_matrices[j+1]),errors[0]))*temp_derivatives
             errors.insert(0,temp_errors)
         
-        self.errors = errors
-        #print(len(errors))
-        #print("errors are ",errors)
+        self.errors = errors #this i think was there to trouble shoot, probably can be taken out. But dont want to break anything
         #just compute partial derivatives now
         partial_Ws = []
         partial_bs = []
         
-        
+        #partial derivates are the cross product of the erros above and the activations for W and just the errors for b. Edge cases have to be handled slightly specially
         for k in range(self.number_layers):
             if k ==0:
                 partial_Ws.append(np.outer(errors[k],self.input_layer))
@@ -153,14 +152,13 @@ class NeuralNetwork:
             if k > 0:
                 partial_Ws.append(np.outer(errors[k],layer_as[k-1]))
                 partial_bs.append(errors[k])
-            
-            #partial_Ws.insert(0,np.outer(errors[last_layer_index-k],layer_as[last_layer_index-k-1]))
-            #partial_bs.insert(0,errors[last_layer_index-k])
                 
         return partial_Ws, partial_bs
             
        
     def derivatives_vector(self,x):
+        """This function is useful for backprop above. It takes a vector of numerical values and calculates the sigmoidal derivative
+        value of each and returns it in a similar vector."""
         deriv_vect = []
         for i in range(len(x)):
             deriv_vect.append(self.sigmoid_deriv(x[i]))
@@ -168,6 +166,8 @@ class NeuralNetwork:
         return deriv_vect
     
     def act_vector(self,x):
+        """This function is useful for feedforward. It takes a vector of numerical values and calculates the activation function value 
+        of each element and returns it in a similar vector"""
         act_vect = []
         for i in range(len(x)):
             act_vect.append(self.act_f(x[i]))
@@ -177,7 +177,8 @@ class NeuralNetwork:
 
     def train(self,epoch_number,batch_size, whole_set, answer_set):
         """This function trains the network by interating through a training set containing negative and positive examples and a corresponding answer set
-        this function expects ATCG encoding"""
+        this function expects ATCG encoding as it does the one hot encoding call. This is also where batch size gets used to break the training set up into
+        smaller chunks with which the weights get updated. I.e. at the end of the k loop the weights are actually updated"""
         
         cost_list = []
         
@@ -205,6 +206,7 @@ class NeuralNetwork:
         
         
     def predict(self,input_layer):
+        """This function takes a single input and gets the network prediction by feeding it forward through. The prediction is returned."""
         self.input_layer = input_layer
         self.feedforward()
         answer = self.layer_a[self.number_layers-1]
@@ -227,7 +229,9 @@ def activation(x):
 
 def k_fold_validation(train_set,answer_set,epoch_number,batch_number,setup,alpha,lamba,k):
     """This function will provide k-fold cross validation on a given training set, with a given model. In this case the parameters needed create the NN are passed
-    and each validation loop will create a new temporary 
+    and each validation loop will create a new temporary network with which to train and validate. For each temporarily model it will evaluate on the held out validation
+    set and calculate True Positive Rates and False Positive Rates at a series of threshold values between 0 and 1. It returns these True Positive Rates and False Positive 
+    rates as nested lists with a list within each for each validation cycle.
     
     """
     
@@ -279,7 +283,7 @@ def k_fold_validation(train_set,answer_set,epoch_number,batch_number,setup,alpha
         temp_TPR = [] #temporary list to hold  true positive rates for this validation iteration
         temp_FPR = [] #temporary list to hold false positive rates for this validation iteration
         for zed in range(10):
-            cutoff = zed*0.1 #hard coded that predictions are between 0 to 1 and stepping through the predictions with a threshold step of .0001
+            cutoff = zed*0.1 #hard coded that predictions are between 0 to 1 and stepping through the predictions with a threshold step of .1
             true_positive = 0 #temp counting variable
             true_negative = 0 #temp counting variable
             false_positive = 0 #temp counting variable
@@ -309,10 +313,12 @@ def k_fold_validation(train_set,answer_set,epoch_number,batch_number,setup,alpha
 
     
 def roc_auc_list(roc_TPRs,roc_FPRs):
-    """This function expects lists of lists of TPRs and FPRs (ie at least 2 sets per TPR and FPR)"""
-    roc_AUCs =  []
-    num_iter = len(roc_TPRs)
+    """This function expects lists of lists of TPRs and FPRs (ie at least 2 sets per TPR and FPR). With those lists it calculates the area under the 
+    curve of each corresponding ROC curve."""
+    roc_AUCs =  [] #outermost list
+    num_iter = len(roc_TPRs) #number of additions to do
     
+    #sum up the area using the trapezoidal rule
     for i in range(num_iter):
         TPR_len = len(roc_TPRs[i])
         AUC_temp = 0
@@ -329,11 +335,10 @@ def roc_auc_list(roc_TPRs,roc_FPRs):
     
     
 def genetic_optimization(train_set,answer_set,generation_num,pop_num,cross_rate,mutation_rate, centers):
-    #should keep track of average fitness, and best fitness
     """This function implements a genetic algorithm to optimize the network, this assumes a network with a 68 node input layer,
     a 1 node output layer, and 2  hidden layers. I will seek to optmize the size of each hidden layer, the learning rate, the rate of weight decay, 
-    the number of epochs to perform, and the batch size. I will use the average auROC from k-fold cross validation to evaluate each pop member
-    pop_num should be even
+    the number of epochs to perform, and the batch size. I will use the average auROC from k-fold cross validation to evaluate each population member.
+    pop_num should be even. 
     """
     
     #centers order hidden1, hidden2, alpha, lamba, epoch, batch size
@@ -433,25 +438,34 @@ def genetic_optimization(train_set,answer_set,generation_num,pop_num,cross_rate,
     
 
 def check_individual(individual,train_len):
-    individual[0] = int(np.floor(individual[0]))
-    individual[1] = int(np.floor(individual[1]))
-    individual[4] = int(np.floor(individual[4]))
-    individual[5] = int(np.floor(individual[5]))
+    """This function is needed to keep the parameters manipulated by the genetic algorithm above within acceptable contexts. Accepts a population
+    individual in the paradigm as above and train_len which is the length of the training set. This is important because it is the limit for 
+    batch size. It generally fixes errors beyond a bound by reseting it to an acceptable boundary condition"""
+    individual[0] = int(np.floor(individual[0])) #hidden layer 1 should be an integer
+    individual[1] = int(np.floor(individual[1])) #hidden layer 2 should be an integer
+    individual[4] = int(np.floor(individual[4])) #epoch number should be an integer
+    individual[5] = int(np.floor(individual[5])) #batch size should be an integer
     
+    #hidden layer must be between 1 and inf
     if individual[0] < 1:
         individual[0] = 1
+    #hidden layer must be between 1 and inf
     if individual[1] < 1:
         individual[1] = 1
+    #alpha must be between 0 and 1
     if individual[2] >= 1:
         individual[2] = 0.999
     if individual[2] <= 0:
         individual[2] = 0.001
+    #lamba must be between 0 and 1
     if individual[3] >= 1:
         individual[3] = 0.999
     if individual[3] <= 0:
         individual[3] = 0
+    #epoch number must be between 1 and inf
     if individual[4] < 1:
         individual[4] = 1
+    #batch size must be between 1 and the length of the training set
     if individual[5] < 1:
         individual[5] = 1
     if individual[5] > train_len:
@@ -460,6 +474,10 @@ def check_individual(individual,train_len):
     return individual
     
 def score_generation(generation,train_set,answer_set):
+    """This function scores a generation from the genetic algorithm by calculating the auROC for the given parameters of an individual.
+    It is hard coded for k=2 cross validation to save time in scoring generations. Essentially it is the standard initial,train,evaluate for
+    k-fold cross validation just looped over many temporary networks. Requires a list of 'individuals' and the training and answer set. The training set should be
+    in ATCG encoding. It returns a vector of the scores in the order of the generation individuals."""
     generation_scores = []
     
     for ind in generation:
@@ -470,7 +488,9 @@ def score_generation(generation,train_set,answer_set):
         batch_size = ind[5]
         epoch_number = ind[4]
         k = 2
+        #run the validation
         roc_FPRs, roc_TPRs  = k_fold_validation(train_set,answer_set,epoch_number,batch_size,setup,alpha,lamba,k)
+        #get the auROC as the score
         roc_AUCs = roc_auc_list(roc_TPRs,roc_FPRs)
         generation_scores.append(np.mean(roc_AUCs))
         

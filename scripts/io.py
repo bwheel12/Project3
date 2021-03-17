@@ -29,7 +29,7 @@ def import_negatives(import_path,k_mer):
     for i in range(num_lines):
         if lines[i][0] == '>':
             temp_gene = lines[(i):(i+1)*18-1]
-            rand_line = int(np.ceil(rand.random()*16))
+            rand_line = int(np.ceil(rand.random()*15))
             rand_index = int(np.floor(rand.random()*(61-18)))
             negative_list.append(temp_gene[rand_line][rand_index:(rand_index+k_mer)])
         
@@ -57,13 +57,17 @@ def one_hot_encode(k_mer_list):
                 sub_index = 2
             if temp_kmer[j] == 'C':
                 sub_index = 3
-            temp_1_hot[(j-1)*4+sub_index] = 1
+            temp_1_hot[(j)*4+sub_index] = 1
         one_hot_encoded.append(temp_1_hot)
     
     
     return one_hot_encoded
 
 def shuffle_concat(pos_list,neg_list,neg_scale):
+    """This function creates a single training set from individual positive and negative example lists. Must provide the example lists in ATCG encoding. Neg scale is 
+    an integer that is the number of negative examples to include for each positive example. The function also shuffles the examples and scores while maintaining example, 
+    answer pairs. This is nice so that a training set can be used in order while maintaining an even mix of positive and negative examples accross batches."""
+    
     number_positives = len(pos_list)
     number_neg = number_positives*neg_scale
     neg_short = []
@@ -74,12 +78,15 @@ def shuffle_concat(pos_list,neg_list,neg_scale):
         neg_short.append(neg_list[rand_index])
 
 
-    combo_training_list = pos_list + neg_short
+    combo_training_list = pos_list + neg_short #combine positive and negative lists
+    #make the answer list
     combo_answer_list    = np.ones((number_positives))
-    combo_answer_list    = np.concatenate((combo_answer_list,np.zeros((number_neg))))
+    combo_answer_list    = np.concatenate((combo_answer_list,np.zeros((number_neg)))) 
+    #shuffle while maintaining pairs
     zipped_full_train    = list(zip(combo_training_list,combo_answer_list))
     rand.shuffle(zipped_full_train)
     shuffle_train_list, shuffle_answer_list = zip(*zipped_full_train)
+    
     return shuffle_train_list, shuffle_answer_list
     
     
